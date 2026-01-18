@@ -22,7 +22,7 @@ export default function PagamentoPage() {
       const { data, error } = await supabase
         .from("rifas")
         .select("status")
-        .eq("payment_id", paymentId)
+        .eq("payment_id", String(paymentId))
         .single();
 
       if (data?.status === "approved" || data?.status === "pago") {

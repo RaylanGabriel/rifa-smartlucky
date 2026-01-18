@@ -26,7 +26,7 @@ export async function POST(request: Request) {
             status: paymentData.status,
             payment_info: paymentData,
           })
-          .eq("payment_id", paymentid);
+          .eq("payment_id", String(paymentid));
 
         if (error) {
           console.error("Erro Supabase:", error);

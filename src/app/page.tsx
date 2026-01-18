@@ -129,14 +129,13 @@ export default function Home() {
       setSelecionados([]);
       localStorage.removeItem("@rifa:selecionados");
 
-      router.push("/pagamento");
-    } catch (error: any) {
-      alert("Erro: " + error.message);
-    } finally {
-      setEstaProcessando(false);
-    }
-  };
+   router.push(`/pagamento?id=${checkout.id}&code=${encodeURIComponent(checkout.qr_code)}`);
 
+} catch (error: any) {
+  alert("Erro: " + error.message);
+} finally {
+  setEstaProcessando(false);
+}
   return (
     <main className={`${styles.main} overflow-x-hidden relative min-h-screen`}>
       <div className="absolute top-[-10%] left-[-10%] w-125 h-125 bg-[#8257E5] opacity-[0.15] blur-[120px] rounded-full pointer-events-none"></div>
@@ -253,4 +252,5 @@ export default function Home() {
       </div>
     </main>
   );
+}
 }
