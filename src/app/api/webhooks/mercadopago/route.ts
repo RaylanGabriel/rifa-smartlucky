@@ -1,37 +1,46 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+
 export async function POST(request: Request) {
+  try {
     const body = await request.json();
-      const paymentid = body.data?.id;
-    if (body.type === "payment" && paymentid) {
-      const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentid}`, {
-        headers: {
-          Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
+
+    const paymentid = body.data?.id || body.id;
+
+    if (paymentid) {
+      const response = await fetch(
+        `https://api.mercadopago.com/v1/payments/${paymentid}`,
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`,
+          },
         },
-      });
-      const paymentData = await response.json();
-      if (paymentData.status === "approved") {
+      );
+
+      if (response.ok) {
+        const paymentData = await response.json();
+
         const { error } = await supabase
-          .from("payments")
-          .update({ status: "approved", payment_info: paymentData })
+          .from("rifas")
+          .update({
+            status: paymentData.status,
+            payment_info: paymentData,
+          })
           .eq("payment_id", paymentid);
+
         if (error) {
-          console.error("Erro ao atualizar o pagamento:", error);
-          return NextResponse.json({ message: "Erro ao atualizar o pagamento." }, { status: 500 });
+          console.error("Erro Supabase:", error);
+          return NextResponse.json(
+            { message: "Erro no banco" },
+            { status: 500 },
+          );
         }
-        return NextResponse.json({ message: "Pagamento atualizado com sucesso." }, { status: 200 });
-      } 
-      else {
-        const { error } = await supabase
-          .from("payments")
-          .update({ status: paymentData.status, payment_info: paymentData })
-          .eq("payment_id", paymentid);
-        if (error) {
-          console.error("Erro ao atualizar o pagamento:", error);
-          return NextResponse.json({ message: "Erro ao atualizar o pagamento." }, { status: 500 });
-        }
-        return NextResponse.json({ message: "Pagamento atualizado com sucesso." }, { status: 200 });
       }
     }
-    return NextResponse.json({ message: "Evento não tratado." }, { status: 400 });
+
+    return NextResponse.json({ message: "Recebido" }, { status: 200 });
+  } catch (err) {
+    console.error("Erro Webhook:", err);
+    return NextResponse.json({ message: "Erro interno" }, { status: 200 });
+  }
 }
