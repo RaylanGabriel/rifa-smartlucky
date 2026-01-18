@@ -20,7 +20,7 @@ export async function POST(req: Request) {
           transaction_amount: Number(valorTotal),
           description: `Rifa SmartLucky - Números: ${numeros.join(", ")}`,
           payment_method_id: "pix",
-          // notification_url: "https://seu-site.vercel.app/api/webhooks/mercadopago",
+          notification_url: "https://rifa-smartlucky.vercel.app//api/webhooks/mercadopago",
           payer: {
             email: "test_user_123@testuser.com", 
             first_name: nome,
