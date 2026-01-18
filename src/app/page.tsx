@@ -131,8 +131,11 @@ export default function Home() {
 
    router.push(`/pagamento?id=${checkout.id}&code=${encodeURIComponent(checkout.qr_code)}`);
 
-} catch (error: any) {
-  alert("Erro: " + error.message);
+} catch (error: unknown) {
+  if (error instanceof Error) {
+    alert(error.message);
+  } else
+  alert("Erro ao processar o pagamento. Tente novamente.");
 } finally {
   setEstaProcessando(false);
 }
