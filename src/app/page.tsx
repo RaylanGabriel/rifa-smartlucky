@@ -82,63 +82,65 @@ export default function Home() {
     }
   };
 
-  const handleFinalizar = async () => {
-    setEstaProcessando(true);
+ const handleFinalizar = async () => {
+  setEstaProcessando(true);
 
-    try {
-      const valorTotal = selecionados.length * VALOR_UNITARIO;
+  try {
+    const valorTotal = selecionados.length * VALOR_UNITARIO;
 
-      const res = await fetch("/api/create-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nome,
-          numeros: selecionados,
-          valorTotal: valorTotal,
-        }),
-      });
+    const res = await fetch("/api/create-payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nome,
+        numeros: selecionados,
+        valorTotal: valorTotal,
+      }),
+    });
 
-      const checkout = await res.json();
+    const checkout = await res.json();
 
-      if (!checkout.id) {
-        throw new Error("Erro ao gerar o PIX. Tente novamente.");
-      }
+    if (!checkout.id) {
+      throw new Error("Erro ao gerar o PIX. Tente novamente.");
+    }
+
+    const dadosParaSalvar = selecionados.map((num) => ({
+      id: num,
+      status: "pendente",
+      nome: nome,
+      whatsapp: whatsapp,
+      payment_id: String(checkout.id),
+    }));
+
+    const { error } = await supabase.from("rifas").upsert(dadosParaSalvar);
+
+    if (error) throw error;
+
+    localStorage.setItem(
+      "dadosPagamento",
+      JSON.stringify({
+        ...checkout,
+        valorTotal: valorTotal,
+        numeros: selecionados,
+      })
+    );
+
+    setSelecionados([]);
+    localStorage.removeItem("@rifa:selecionados");
 
     
-      const dadosParaSalvar = selecionados.map((num) => ({
-        id: num,
-        status: "pendente",
-        nome: nome,
-        whatsapp: whatsapp,
-        payment_id: String(checkout.id),
-      }));
+    router.push(`/pagamento?id=${checkout.id}&code=${encodeURIComponent(checkout.qr_code)}`);
 
-      const { error } = await supabase.from("rifas").upsert(dadosParaSalvar);
-
-      if (error) throw error;
-
-      localStorage.setItem(
-        "dadosPagamento",
-        JSON.stringify({
-          ...checkout,
-          valorTotal: valorTotal,
-          numeros: selecionados,
-        }),
-      );
-
-      setSelecionados([]);
-      localStorage.removeItem("@rifa:selecionados");
-
-   router.push(`/pagamento?id=${checkout.id}&code=${encodeURIComponent(checkout.qr_code)}`);
-
-} catch (error: unknown) {
-  if (error instanceof Error) {
-    alert(error.message);
-  } else
-  alert("Erro ao processar o pagamento. Tente novamente.");
-} finally {
-  setEstaProcessando(false);
-}
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      alert(error.message);
+    } else {
+      alert("Erro ao processar o pagamento. Tente novamente.");
+    }
+  } finally {
+    setEstaProcessando(false);
+  }
+};
   return (
     <main className={`${styles.main} overflow-x-hidden relative min-h-screen`}>
       <div className="absolute top-[-10%] left-[-10%] w-125 h-125 bg-[#8257E5] opacity-[0.15] blur-[120px] rounded-full pointer-events-none"></div>
@@ -255,5 +257,4 @@ export default function Home() {
       </div>
     </main>
   );
-}
-}
+};
