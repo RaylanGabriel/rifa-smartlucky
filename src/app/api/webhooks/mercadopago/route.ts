@@ -19,6 +19,17 @@ export async function POST(request: Request) {
 
       if (response.ok) {
         const paymentData = await response.json();
+        let statusTraduzido = paymentData.status;
+        if (paymentData.status === "approved") {
+          statusTraduzido = "pago";
+        } else if (paymentData.status === "pending") {
+          statusTraduzido = "pendente";
+        } else if (paymentData.status === "rejected") {
+          statusTraduzido = "recusado";
+        } else if (paymentData.status === "in_process") {
+          statusTraduzido = "em_processamento";
+        }
+        paymentData.status = statusTraduzido;
 
         const { error } = await supabase
           .from("rifas")
