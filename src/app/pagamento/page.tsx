@@ -1,25 +1,23 @@
 "use client";
 
-import { styles } from "@/app/styles";
-import { Copy, CheckCircle, Clock, PartyPopper } from "lucide-react";
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { CheckCircle2, Clock, Copy } from "lucide-react";
 
-export default function PagamentoPage() {
-  const [copiado, setCopiado] = useState(false);
-  const [status, setStatus] = useState("pending");
+function PagamentoContent() {
   const searchParams = useSearchParams();
-
   const paymentId = searchParams.get("id");
-  const valorRifa = "3,50";
-  const chavePix = searchParams.get("code") || "CARREGANDO...";
+  const qrCode = searchParams.get("code");
+
+  const [status, setStatus] = useState("pendente");
 
   useEffect(() => {
     if (!paymentId) return;
 
-    const interval = setInterval(async () => {
-      const { data, error } = await supabase
+    // Função para verificar o status no Supabase
+    const checkStatus = async () => {
+      const { data } = await supabase
         .from("rifas")
         .select("status")
         .eq("payment_id", String(paymentId))
@@ -27,105 +25,136 @@ export default function PagamentoPage() {
 
       if (data?.status === "approved" || data?.status === "pago") {
         setStatus("approved");
-        clearInterval(interval);
       }
-    }, 5000);
+    };
 
-    return () => clearInterval(interval);
+    checkStatus();
+
+    // Escuta mudanças em tempo real no banco
+    const channel = supabase
+      .channel("check-pagamento")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "rifas",
+          filter: `payment_id=eq.${paymentId}`,
+        },
+        (payload) => {
+          if (
+            payload.new.status === "approved" ||
+            payload.new.status === "pago"
+          ) {
+            setStatus("approved");
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [paymentId]);
 
-  const copiarChavePix = () => {
-    navigator.clipboard.writeText(chavePix);
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 2000);
-  };
-
+  // Se o pagamento for aprovado, mostra esta tela
   if (status === "approved") {
     return (
-      <main className={styles.main}>
-        <div className={styles.container}>
-          <div className={`${styles.payment.card} text-center py-12`}>
-            <div className="flex justify-center mb-6">
-              <div className="bg-green-500/20 p-6 rounded-full">
-                <PartyPopper size={64} className="text-green-500" />
-              </div>
-            </div>
-            <h1 className="text-3xl font-bold text-white mb-4">
-              Pagamento Confirmado!
-            </h1>
-            <p className="text-gray-400 mb-8">
-              Seus números foram reservados com sucesso. Boa sorte na rifa!
-            </p>
-            <button
-              onClick={() => (window.location.href = "/")}
-              className="w-full bg-[#8257E5] hover:bg-[#9466FF] text-white font-bold py-4 rounded-xl transition-all"
-            >
-              Voltar ao Início
-            </button>
-          </div>
+      <main className="min-h-screen bg-[#09090A] flex items-center justify-center p-4">
+        <div className="bg-[#121214] p-8 rounded-2xl border border-green-500/20 text-center max-w-md w-full">
+          <CheckCircle2 size={64} className="text-green-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-white mb-2">
+            Pagamento Confirmado!
+          </h1>
+          <p className="text-gray-400 mb-6">
+            Seus números foram reservados com sucesso. Boa sorte!
+          </p>
+          <button
+            onClick={() => (window.location.href = "/")}
+            className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg transition-colors"
+          >
+            VOLTAR PARA O INÍCIO
+          </button>
         </div>
       </main>
     );
   }
 
   return (
-    <main className={styles.main}>
-      <div className={styles.container}>
-        <header className={styles.header.wrapper}>
-          <h1 className={styles.header.title}>
-            Quase <span className="text-[#8257E5]">Lá!</span>
+    <main className="min-h-screen bg-[#09090A] text-white p-4 flex flex-col items-center justify-center">
+      <div className="max-w-md w-full space-y-6">
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-black italic uppercase tracking-tighter">
+            QUASE <span className="text-[#8257E5]">LÁ!</span>
           </h1>
-          <p className={styles.header.subtitle}>
-            Para garantir seus números, realize o pagamento via Pix utilizando a
-            chave abaixo:
+          <p className="text-gray-400 text-sm">
+            Para garantir seus números, realize o pagamento via Pix.
           </p>
-        </header>
+        </div>
 
-        <div className={styles.payment.card}>
-          <div className={styles.payment.qrCodeWrapper}>
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${chavePix}`}
-              alt="QR Code Pix"
-              className="w-48 h-48"
-            />
-          </div>
+        <div className="bg-[#121214] border border-white/5 rounded-2xl p-6 flex flex-col items-center gap-6">
+          {qrCode ? (
+            <div className="bg-white p-2 rounded-xl">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCode)}&size=250x250`}
+                alt="QR Code Pix"
+                className="w-48 h-48"
+              />
+            </div>
+          ) : (
+            <div className="w-48 h-48 bg-white/5 animate-pulse rounded-xl flex items-center justify-center">
+              <Clock className="text-gray-600" />
+            </div>
+          )}
 
-          <div className="mb-8">
-            <span className={styles.payment.valueLabel}>Valor a pagar</span>
-            <span className={styles.payment.valueText}>R$ {valorRifa}</span>
-          </div>
-
-          <div className="space-y-4 text-left">
-            <p className={styles.footer.label}>Copia e Cola</p>
-            <div onClick={copiarChavePix} className={styles.payment.pixBox}>
-              <span
-                className={styles.payment.pixText + " truncate max-w-[250px]"}
+          <div className="w-full space-y-2">
+            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+              Copia e Cola
+            </label>
+            <div className="relative">
+              <input
+                readOnly
+                value={qrCode || "Gerando código..."}
+                className="w-full bg-[#09090A] border border-white/10 rounded-lg py-3 px-4 text-xs font-mono pr-12 text-gray-300"
+              />
+              <button
+                onClick={() => {
+                  if (qrCode) navigator.clipboard.writeText(qrCode);
+                  alert("Código copiado!");
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8257E5] hover:text-white transition-colors"
               >
-                {chavePix}
-              </span>
-              {copiado ? (
-                <CheckCircle size={20} className="text-green-500" />
-              ) : (
-                <Copy size={20} className="text-[#8257E5]" />
-              )}
+                <Copy size={20} />
+              </button>
             </div>
           </div>
 
-          <div className={styles.payment.statusBadge}>
-            <Clock className="text-[#8257E5] shrink-0" size={24} />
-            <p className={styles.payment.statusText}>
-              Aguardando confirmação do pagamento...
+          <div className="w-full bg-[#17171B] border border-white/5 rounded-xl p-4 flex items-center gap-3">
+            <Clock size={20} className="text-[#8257E5]" />
+            <p className="text-[11px] text-gray-400 leading-relaxed">
+              Seu tempo de reserva expira em{" "}
+              <span className="text-white font-bold">15:00 minutos</span>. Após
+              esse tempo, os números serão liberados.
             </p>
           </div>
-
-          <button
-            disabled
-            className="w-full mt-8 bg-gray-700 text-gray-400 font-bold py-4 rounded-xl cursor-not-allowed uppercase tracking-widest"
-          >
-            Verificando Automaticamente...
-          </button>
         </div>
       </div>
     </main>
+  );
+}
+
+export default function PagamentoPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#09090A] flex items-center justify-center">
+          <div className="text-[#8257E5] animate-pulse font-mono">
+            CARREGANDO...
+          </div>
+        </div>
+      }
+    >
+      <PagamentoContent />
+    </Suspense>
   );
 }
