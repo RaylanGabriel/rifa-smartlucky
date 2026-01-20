@@ -12,7 +12,7 @@ export default function LoginPage() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (usuario === process.env.ADM_USUARIO && senha === process.env.ADM_SENHA) {
+    if (usuario === process.env.NEXT_PUBLIC_ADM_USUARIO && senha === process.env.NEXT_PUBLIC_ADM_SENHA) {
       localStorage.setItem("smartlucky_admin", "true");
       router.push("/admin");
     } else {
