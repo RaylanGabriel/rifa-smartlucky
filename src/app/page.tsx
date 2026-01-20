@@ -18,10 +18,10 @@ export default function Home() {
   const [estaProcessando, setEstaProcessando] = useState(false);
 
   const carregarReservas = async () => {
-    const { data, error } = await supabase
+    const { data, } = await supabase
       .from("rifas")
       .select("id")
-      .in("status", ["vendido", "pago"]);
+      .in("status", ["vendido", "pago", "em_processamento", "pendente"]);
     if (data) {
       setNumerosOcupados(data.map((item) => item.id));
     }
