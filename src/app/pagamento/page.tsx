@@ -4,33 +4,43 @@ import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { CheckCircle2, Clock, Copy } from "lucide-react";
-export function Timer({ creatredAt }: { creatredAt: string }) {
+
+export function Timer({ createdAt }: { createdAt: string }) {
   const [timeLeft, setTimeLeft] = useState("");
+
   useEffect(() => {
     const calculateTime = () => {
-      const createdTime = new Date(creatredAt).getTime();
+      const createdTime = new Date(createdAt.replace(" ", "T")).getTime();
       const expirationTime = createdTime + 15 * 60 * 1000;
       const now = new Date().getTime();
       const difference = expirationTime - now;
+
       if (difference <= 0) {
         setTimeLeft("Expirado");
         return;
       }
-      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+
+      const minutes = Math.floor((difference / (1000 * 60)) % 60);
+      const seconds = Math.floor((difference / 1000) % 60);
+
       setTimeLeft(
-        `${String(minutes).padStart(10, "0")}:${String(seconds).padStart(2, "0")}`,
+        `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`,
       );
     };
+
     const timer = setInterval(calculateTime, 1000);
+    calculateTime();
     return () => clearInterval(timer);
-  }, [creatredAt]);
+  }, [createdAt]);
+
   return (
-    <div className="text-center p-4 bg-yellow-100 rounded-lg border border-yellow-300">
-      <p className="font-bold text-yellow-800">
-        Tempo restante para pagamento:
+    <div className="w-full text-center p-3 bg-[#17171B] rounded-xl border border-red-500/20 mb-4">
+      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+        Sua reserva expira em
       </p>
-      <span className="text-2xl font-mono text-red-600">{timeLeft}</span>
+      <span className="text-2xl font-mono text-red-500 font-bold">
+        {timeLeft}
+      </span>
     </div>
   );
 }
@@ -39,28 +49,29 @@ function PagamentoContent() {
   const searchParams = useSearchParams();
   const paymentId = searchParams.get("id");
   const qrCode = searchParams.get("code");
-
   const [status, setStatus] = useState("pendente");
+  const [reserva, setReserva] = useState<{ created_at: string } | null>(null);
 
   useEffect(() => {
     if (!paymentId) return;
 
-    // Função para verificar o status no Supabase
     const checkStatus = async () => {
       const { data } = await supabase
         .from("rifas")
-        .select("status")
+        .select("status, created_at")
         .eq("payment_id", String(paymentId))
         .single();
 
-      if (data?.status === "approved" || data?.status === "pago") {
-        setStatus("approved");
+      if (data) {
+        setReserva(data);
+        if (data.status === "approved" || data.status === "pago") {
+          setStatus("approved");
+        }
       }
     };
 
     checkStatus();
 
-    // Escuta mudanças em tempo real no banco
     const channel = supabase
       .channel("check-pagamento")
       .on(
@@ -87,7 +98,6 @@ function PagamentoContent() {
     };
   }, [paymentId]);
 
-  // Se o pagamento for aprovado, mostra esta tela
   if (status === "approved") {
     return (
       <main className="min-h-screen bg-[#09090A] flex items-center justify-center p-4">
@@ -123,6 +133,8 @@ function PagamentoContent() {
         </div>
 
         <div className="bg-[#121214] border border-white/5 rounded-2xl p-6 flex flex-col items-center gap-6">
+          {reserva?.created_at && <Timer createdAt={reserva.created_at} />}
+
           {qrCode ? (
             <div className="bg-white p-2 rounded-xl">
               <img
@@ -162,9 +174,8 @@ function PagamentoContent() {
           <div className="w-full bg-[#17171B] border border-white/5 rounded-xl p-4 flex items-center gap-3">
             <Clock size={20} className="text-[#8257E5]" />
             <p className="text-[11px] text-gray-400 leading-relaxed">
-              Seu tempo de reserva expira em{" "}
-              <span className="text-white font-bold">15:00 minutos</span>. Após
-              esse tempo, os números serão liberados.
+              Realize o pagamento rapidamente. Após 15 minutos, sua reserva será
+              cancelada e os números voltarão a ficar disponíveis.
             </p>
           </div>
         </div>
