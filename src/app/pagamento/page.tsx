@@ -54,21 +54,29 @@ function PagamentoContent() {
 
   useEffect(() => {
     if (!paymentId) return;
+const checkStatus = async () => {
+  try {
+    const { data, error } = await supabase
+      .from("rifas")
+      .select("status, created_at") // Verifique se não há espaços extras aqui
+      .eq("payment_id", String(paymentId))
+      .single();
+      
+    if (error) {
+      console.error("Erro na busca do Supabase:", error.message);
+      return;
+    }
 
-    const checkStatus = async () => {
-      const { data } = await supabase
-        .from("rifas")
-        .select("status, created_at")
-        .eq("payment_id", String(paymentId))
-        .single();
-
-      if (data) {
-        setReserva(data);
-        if (data.status === "approved" || data.status === "pago") {
-          setStatus("approved");
-        }
+    if (data) {
+      setReserva(data);
+      if (data.status === "approved" || data.status === "pago") {
+        setStatus("approved");
       }
-    };
+    }
+  } catch (err) {
+    console.error("Erro crítico:", err);
+  }
+};
 
     checkStatus();
 
