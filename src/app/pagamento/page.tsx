@@ -4,6 +4,36 @@ import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { CheckCircle2, Clock, Copy } from "lucide-react";
+export function Timer({ creatredAt }: { creatredAt: string }) {
+  const [timeLeft, setTimeLeft] = useState("");
+  useEffect(() => {
+    const calculateTime = () => {
+      const createdTime = new Date(creatredAt).getTime();
+      const expirationTime = createdTime + 15 * 60 * 1000;
+      const now = new Date().getTime();
+      const difference = expirationTime - now;
+      if (difference <= 0) {
+        setTimeLeft("Expirado");
+        return;
+      }
+      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+      setTimeLeft(
+        `${String(minutes).padStart(10, "0")}:${String(seconds).padStart(2, "0")}`,
+      );
+    };
+    const timer = setInterval(calculateTime, 1000);
+    return () => clearInterval(timer);
+  }, [creatredAt]);
+  return (
+    <div className="text-center p-4 bg-yellow-100 rounded-lg border border-yellow-300">
+      <p className="font-bold text-yellow-800">
+        Tempo restante para pagamento:
+      </p>
+      <span className="text-2xl font-mono text-red-600">{timeLeft}</span>
+    </div>
+  );
+}
 
 function PagamentoContent() {
   const searchParams = useSearchParams();
