@@ -58,7 +58,7 @@ const checkStatus = async () => {
   try {
     const { data, error } = await supabase
       .from("rifas")
-      .select("status, created_at") // Verifique se não há espaços extras aqui
+      .select("status, created_at") 
       .eq("payment_id", String(paymentId))
       .single();
       

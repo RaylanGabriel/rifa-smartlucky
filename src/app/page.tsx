@@ -23,7 +23,7 @@ export default function Home() {
       .select("id")
       .in("status", ["vendido", "pago", "em_processamento", "pendente"]);
     if (data) {
-      setNumerosOcupados(data.map((item) => item.id));
+      setNumerosOcupados(data.map((item: { id: any; }) => item.id));
     }
   };
 
