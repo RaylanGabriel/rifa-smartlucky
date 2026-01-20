@@ -40,7 +40,7 @@ export default function AdminPage() {
     if (!confirm(msg)) return;
 
     try {
-      const res = await fetch('app/admin/acoes', {
+      const res = await fetch('/api/admin/acoes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, action: acao })
