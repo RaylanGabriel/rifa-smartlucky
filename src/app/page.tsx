@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import NumeroRifa, { StatusNumero } from "@/components/NumeroRifa";
 import { styles } from "./styles";
 import { supabase } from "@/lib/supabase";
-import { User, Smartphone, CreditCard } from "lucide-react";
+import { User, Smartphone, CreditCard, } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
@@ -16,15 +16,20 @@ export default function Home() {
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [numerosOcupados, setNumerosOcupados] = useState<number[]>([]);
   const [estaProcessando, setEstaProcessando] = useState(false);
-  
+
+  const totalNumeros = 500;
+  const numerosPorPagina = 100;
+  const totalPaginas = Math.ceil(totalNumeros / numerosPorPagina);
+  const LIMITE_SELECAO = 10;
+  const VALOR_UNITARIO = 3.5;
 
   const carregarReservas = async () => {
-    const { data, } = await supabase
+    const { data } = await supabase
       .from("rifas")
       .select("id")
       .in("status", ["vendido", "pago", "em_processamento", "pendente"]);
     if (data) {
-      setNumerosOcupados(data.map((item: { id: any; }) => item.id));
+      setNumerosOcupados(data.map((item: { id: any }) => item.id));
     }
   };
 
@@ -32,30 +37,15 @@ export default function Home() {
     carregarReservas();
     const channel = supabase
       .channel("schema-db-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "rifas" },
-        () => {
-          carregarReservas();
-        },
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "rifas" }, () => {
+        carregarReservas();
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, []);
-
-  const totalNumeros = 500;
-  const numerosPorPagina = 100;
-  const totalPaginas = Math.ceil(totalNumeros / numerosPorPagina);
-  const LIMITE_SELECAO = 10;
-  const VALOR_UNITARIO = 3.5; 
-
-  const numerosDaPagina = Array.from(
-    { length: numerosPorPagina },
-    (_, i) => (paginaAtual - 1) * numerosPorPagina + i + 1,
-  );
 
   useEffect(() => {
     const salvo = localStorage.getItem("@rifa:selecionados");
@@ -71,7 +61,6 @@ export default function Home() {
 
   const gerenciarSelecao = (num: number) => {
     if (numerosOcupados.includes(num)) return;
-
     if (selecionados.includes(num)) {
       setSelecionados((prev) => prev.filter((item) => item !== num));
     } else {
@@ -83,72 +72,54 @@ export default function Home() {
     }
   };
 
- const handleFinalizar = async () => {
-  setEstaProcessando(true);
+  const handleFinalizar = async () => {
+    setEstaProcessando(true);
+    try {
+      const valorTotal = selecionados.length * VALOR_UNITARIO;
+      const res = await fetch("/api/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome, numeros: selecionados, valorTotal: valorTotal }),
+      });
+      const checkout = await res.json();
+      if (!checkout.id) throw new Error("Erro ao gerar o PIX. Tente novamente.");
 
-  try {
-    const valorTotal = selecionados.length * VALOR_UNITARIO;
+      const dadosParaSalvar = selecionados.map((num) => ({
+        id: num,
+        status: "pendente",
+        nome: nome,
+        whatsapp: whatsapp,
+        payment_id: String(checkout.id),
+      }));
 
-    const res = await fetch("/api/create-payment", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nome,
-        numeros: selecionados,
-        valorTotal: valorTotal,
-      }),
-    });
+      const { error } = await supabase.from("rifas").upsert(dadosParaSalvar);
+      if (error) throw error;
 
-    const checkout = await res.json();
-
-    if (!checkout.id) {
-      throw new Error("Erro ao gerar o PIX. Tente novamente.");
+      setSelecionados([]);
+      localStorage.removeItem("@rifa:selecionados");
+      router.push(`/pagamento?id=${checkout.id}&code=${encodeURIComponent(checkout.qr_code)}`);
+    } catch (error: unknown) {
+      alert(error instanceof Error ? error.message : "Erro ao processar o pagamento.");
+    } finally {
+      setEstaProcessando(false);
     }
+  };
 
-    const dadosParaSalvar = selecionados.map((num) => ({
-      id: num,
-      status: "pendente",
-      nome: nome,
-      whatsapp: whatsapp,
-      payment_id: String(checkout.id),
-    }));
+  const numerosDaPagina = Array.from(
+    { length: numerosPorPagina },
+    (_, i) => (paginaAtual - 1) * numerosPorPagina + i + 1
+  );
 
-    const { error } = await supabase.from("rifas").upsert(dadosParaSalvar);
-
-    if (error) throw error;
-
-    localStorage.setItem(
-      "dadosPagamento",
-      JSON.stringify({
-        ...checkout,
-        valorTotal: valorTotal,
-        numeros: selecionados,
-      })
-    );
-
-    setSelecionados([]);
-    localStorage.removeItem("@rifa:selecionados");
-
-    
-    router.push(`/pagamento?id=${checkout.id}&code=${encodeURIComponent(checkout.qr_code)}`);
-
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      alert(error.message);
-    } else {
-      alert("Erro ao processar o pagamento. Tente novamente.");
-    }
-  } finally {
-    setEstaProcessando(false);
-  }
-};
   return (
-    <main className={`${styles.main} overflow-x-hidden relative min-h-screen`}>
+    <main className={`${styles.main} overflow-x-hidden relative min-h-screen pb-20`}>
+      {/* EFEITOS DE FUNDO */}
       <div className="absolute top-[-10%] left-[-10%] w-125 h-125 bg-[#8257E5] opacity-[0.15] blur-[120px] rounded-full pointer-events-none"></div>
       <div className="absolute bottom-[0%] right-[-10%] w-100 h-100 bg-[#4A90E2] opacity-[0.1] blur-[100px] rounded-full pointer-events-none"></div>
 
-      <div className={`${styles.container} relative z-10`}>
-        <header className={styles.header.wrapper}>
+      <div className={`${styles.container} relative z-0 pt-0`}>
+        
+        {/* 1. HEADER */}
+        <header className={`${styles.header.wrapper} mb-8`}>
           <h1 className={styles.header.title}>
             <span className="text-[#8257E5] font-mono">Smart</span>
             <span className="text-white font-mono">Lucky</span>
@@ -158,7 +129,24 @@ export default function Home() {
           </p>
         </header>
 
-        <nav className={styles.pagination.wrapper}>
+        {/* 2. CARD DE DESTAQUE DO PRÊMIO */}
+        <section className="w-full max-w-2xl mx-auto mb-12 text-center px-4">
+          <div className="bg-[#121214] border-2 border-[#8257E5]/30 rounded-2xl p-2 relative overflow-hidden shadow-[0_0_50px_-12px_rgba(130,87,229,0.3)]">
+            <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#8257E5] blur-[100px] opacity-20"></div>
+            
+            
+            <h2 className="text-2xl md:text-2xl font-black text-white italic uppercase tracking-tighter mb-2">
+              Ganhe <span className="text-[#8257E5]">R$ 1.000,00</span>
+            </h2>
+            
+            <p className="text-gray-400 text-sm md:text-base max-w-md mx-auto leading-relaxed">
+              Garanta seu número por apenas <span className="text-white font-bold">R$ {VALOR_UNITARIO.toFixed(2).replace(".", ",")}</span> e concorra ao prêmio direto no seu PIX!
+            </p>
+          </div>
+        </section>
+
+        {/* 3. NAVEGAÇÃO / PAGINAÇÃO */}
+        <nav className={`${styles.pagination.wrapper} mb-6`}>
           <button
             className={`${styles.pagination.btn} ${styles.pagination.btnClaro}`}
             onClick={() => setPaginaAtual((p) => Math.max(p - 1, 1))}
@@ -178,9 +166,8 @@ export default function Home() {
           </button>
         </nav>
 
-        <section
-          className={`${styles.grid} ${carregado ? "opacity-100" : "opacity-0"}`}
-        >
+        {/* 4. GRADE DE NÚMEROS */}
+        <section className={`${styles.grid} ${carregado ? "opacity-100" : "opacity-0"} mb-12 transition-opacity duration-500`}>
           {numerosDaPagina.map((n) => {
             let status: StatusNumero = "disponivel";
             if (numerosOcupados.includes(n)) status = "vendido";
@@ -197,6 +184,7 @@ export default function Home() {
           })}
         </section>
 
+        {/* 5. RODAPÉ / FORMULÁRIO */}
         <footer className={styles.footer.wrapper}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div className="space-y-1">
@@ -233,21 +221,13 @@ export default function Home() {
                 Total da Reserva
               </p>
               <p className="text-3xl font-black text-white font-mono">
-                R${" "}
-                {(selecionados.length * VALOR_UNITARIO)
-                  .toFixed(2)
-                  .replace(".", ",")}
+                R$ {(selecionados.length * VALOR_UNITARIO).toFixed(2).replace(".", ",")}
               </p>
             </div>
 
             <button
               className={styles.footer.btnFinalizar}
-              disabled={
-                !nome ||
-                !whatsapp ||
-                selecionados.length === 0 ||
-                estaProcessando
-              }
+              disabled={!nome || !whatsapp || selecionados.length === 0 || estaProcessando}
               onClick={handleFinalizar}
             >
               <CreditCard size={22} className="text-white" />
@@ -258,4 +238,4 @@ export default function Home() {
       </div>
     </main>
   );
-};
+}
