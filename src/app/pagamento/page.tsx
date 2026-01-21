@@ -20,11 +20,10 @@ export function Timer({ createdAt }: { createdAt: string }) {
 
 
       if (difference <= 0) {
-        clearInterval(timer);
         alert("Sua reserva expirou, o número não foi reservado!");
         router.push("/");
 
-        return;
+        return false;
       }
 
       const minutes = Math.floor((difference / (1000 * 60)) % 60);
@@ -33,12 +32,17 @@ export function Timer({ createdAt }: { createdAt: string }) {
       setTimeLeft(
         `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`,
       );
+      return true;
     };
-
-    const timer = setInterval(calculateTime, 1000);
-    calculateTime();
-    return () => clearInterval(timer);
-  }, [createdAt]);
+    const shouldcontinue = calculateTime();
+    if (shouldcontinue){
+      const interval = setInterval(() => {
+        const active = calculateTime();
+        if (!active) clearInterval(interval);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [createdAt, router]);
 
   return (
     <div className="w-full text-center p-3 bg-[#17171B] rounded-xl border border-red-500/20 mb-4">
