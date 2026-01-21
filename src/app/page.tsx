@@ -16,6 +16,7 @@ export default function Home() {
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [numerosOcupados, setNumerosOcupados] = useState<number[]>([]);
   const [estaProcessando, setEstaProcessando] = useState(false);
+  
 
   const carregarReservas = async () => {
     const { data, } = await supabase

@@ -15,6 +15,24 @@ interface Venda {
 export default function AdminPage() {
   const [vendas, setVendas] = useState<Venda[]>([]);
   const router = useRouter();
+  useEffect(() => {
+
+    const channel = supabase
+      .channel('rifas-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'rifas' },
+        () => {
+
+          buscarVendas();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   useEffect(() => {
     const isLogged = localStorage.getItem("smartlucky_admin");
