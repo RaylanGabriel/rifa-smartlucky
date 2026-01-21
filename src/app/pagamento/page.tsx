@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { CheckCircle2, Clock, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { clearInterval } from "timers";
+
 
 export function Timer({ createdAt }: { createdAt: string }) {
   const [timeLeft, setTimeLeft] = useState("");
