@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { CheckCircle2, Clock, Copy } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export function Timer({ createdAt }: { createdAt: string }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -14,11 +15,15 @@ export function Timer({ createdAt }: { createdAt: string }) {
       const expirationTime = createdTime + 15 * 60 * 1000;
       const now = new Date().getTime();
       const difference = expirationTime - now;
+      const router = useRouter();
 
       if (difference <= 0) {
-        setTimeLeft("Expirado");
+        alert("Sua reserva expirou, o número não foi reservado!");
+        router.push("/");
+
         return;
       }
+      [(difference)]
 
       const minutes = Math.floor((difference / (1000 * 60)) % 60);
       const seconds = Math.floor((difference / 1000) % 60);
@@ -54,29 +59,29 @@ function PagamentoContent() {
 
   useEffect(() => {
     if (!paymentId) return;
-const checkStatus = async () => {
-  try {
-    const { data, error } = await supabase
-      .from("rifas")
-      .select("status, created_at") 
-      .eq("payment_id", String(paymentId))
-      .single();
-      
-    if (error) {
-      console.error("Erro na busca do Supabase:", error.message);
-      return;
-    }
+    const checkStatus = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("rifas")
+          .select("status, created_at")
+          .eq("payment_id", String(paymentId))
+          .single();
 
-    if (data) {
-      setReserva(data);
-      if (data.status === "approved" || data.status === "pago") {
-        setStatus("approved");
+        if (error) {
+          console.error("Erro na busca do Supabase:", error.message);
+          return;
+        }
+
+        if (data) {
+          setReserva(data);
+          if (data.status === "approved" || data.status === "pago") {
+            setStatus("approved");
+          }
+        }
+      } catch (err) {
+        console.error("Erro crítico:", err);
       }
-    }
-  } catch (err) {
-    console.error("Erro crítico:", err);
-  }
-};
+    };
 
     checkStatus();
 
