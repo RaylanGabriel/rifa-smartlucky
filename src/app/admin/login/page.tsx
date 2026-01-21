@@ -14,7 +14,7 @@ export default function LoginPage() {
     
     if (usuario === process.env.NEXT_PUBLIC_ADM_USUARIO && senha === process.env.NEXT_PUBLIC_ADM_SENHA) {
       localStorage.setItem("smartlucky_admin", "true");
-      router.push("/admin");
+      router.push("/api/admin");
     } else {
       alert("Credenciais inválidas!");
     }
