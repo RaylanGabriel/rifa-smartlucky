@@ -5,9 +5,11 @@ import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { CheckCircle2, Clock, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { clearInterval } from "timers";
 
 export function Timer({ createdAt }: { createdAt: string }) {
   const [timeLeft, setTimeLeft] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
     const calculateTime = () => {
@@ -15,15 +17,15 @@ export function Timer({ createdAt }: { createdAt: string }) {
       const expirationTime = createdTime + 15 * 60 * 1000;
       const now = new Date().getTime();
       const difference = expirationTime - now;
-      const router = useRouter();
+
 
       if (difference <= 0) {
+        clearInterval(timer);
         alert("Sua reserva expirou, o número não foi reservado!");
         router.push("/");
 
         return;
       }
-      [(difference)]
 
       const minutes = Math.floor((difference / (1000 * 60)) % 60);
       const seconds = Math.floor((difference / 1000) % 60);
