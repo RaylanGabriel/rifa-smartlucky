@@ -22,7 +22,7 @@ export async function POST(req: Request) {
           payment_method_id: "pix",
           notification_url: "https://rifa-smartlucky.vercel.app/api/webhooks/mercadopago",
           payer: {
-            email: "test_user_123@testuser.com", 
+            email: "raylanmiranda1@gmail.com", 
             first_name: nome,
           },
         }),
