@@ -195,7 +195,10 @@ export default function Home() {
                   type="text"
                   className={`${styles.footer.input} ${styles.footer.inputWithIcon}`}
                   value={nome}
-                  onChange={(e) => setNome(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^a-zA-ZÀ-ÿ\s]/g, "");
+                    setNome(value);
+                  }}
                   placeholder="Seu nome completo"
                 />
               </div>
@@ -208,7 +211,13 @@ export default function Home() {
                   type="tel"
                   className={`${styles.footer.input} ${styles.footer.inputWithIcon}`}
                   value={whatsapp}
-                  onChange={(e) => setWhatsapp(e.target.value)}
+                  onChange={(e) => {
+                    let value = e.target.value.replace(/\D/g, "");
+                    if (value.length > 11) value = value.slice(0, 11);
+                    value = value.replace(/^(\d{2})(\d)/g, "($1) $2");
+                    value = value.replace(/(\d{5})(\d)/, "$1-$2");
+                    setWhatsapp(value);
+                  }}
                   placeholder="(00) 00000-0000"
                 />
               </div>
