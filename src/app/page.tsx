@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 export default function Home() {
   const router = useRouter();
   const [nome, setNome] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
+  const [telefone, setTelefone] = useState("");
   const [selecionados, setSelecionados] = useState<number[]>([]);
   const [carregado, setCarregado] = useState(false);
   const [paginaAtual, setPaginaAtual] = useState(1);
@@ -88,7 +88,7 @@ export default function Home() {
         id: num,
         status: "pendente",
         nome: nome,
-        whatsapp: whatsapp,
+        telefone: telefone,
         payment_id: String(checkout.id),
       }));
 
@@ -204,19 +204,19 @@ export default function Home() {
               </div>
             </div>
             <div className="space-y-1">
-              <label className={styles.footer.label}>WHATSAPP</label>
+              <label className={styles.footer.label}>TELEFONE</label>
               <div className={styles.footer.inputWrapper}>
                 <Smartphone className={styles.footer.inputIcon} />
                 <input
                   type="tel"
                   className={`${styles.footer.input} ${styles.footer.inputWithIcon}`}
-                  value={whatsapp}
+                  value={telefone}
                   onChange={(e) => {
                     let value = e.target.value.replace(/\D/g, "");
                     if (value.length > 11) value = value.slice(0, 11);
                     value = value.replace(/^(\d{2})(\d)/g, "($1) $2");
                     value = value.replace(/(\d{5})(\d)/, "$1-$2");
-                    setWhatsapp(value);
+                    setTelefone(value);
                   }}
                   placeholder="(00) 00000-0000"
                 />
@@ -236,7 +236,7 @@ export default function Home() {
 
             <button
               className={styles.footer.btnFinalizar}
-              disabled={!nome || !whatsapp || selecionados.length === 0 || estaProcessando}
+              disabled={!nome || !telefone || selecionados.length === 0 || estaProcessando}
               onClick={handleFinalizar}
             >
               <CreditCard size={22} className="text-white" />
