@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { CheckCircle2, Clock, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
-
+import Script from "next/script"; 
 
 export function Timer({ createdAt }: { createdAt: string }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -18,11 +18,9 @@ export function Timer({ createdAt }: { createdAt: string }) {
       const now = new Date().getTime();
       const difference = expirationTime - now;
 
-
       if (difference <= 0) {
         alert("Sua reserva expirou, o número não foi reservado!");
         router.push("/");
-
         return false;
       }
 
@@ -35,7 +33,7 @@ export function Timer({ createdAt }: { createdAt: string }) {
       return true;
     };
     const shouldcontinue = calculateTime();
-    if (shouldcontinue){
+    if (shouldcontinue) {
       const interval = setInterval(() => {
         const active = calculateTime();
         if (!active) clearInterval(interval);
@@ -62,6 +60,26 @@ function PagamentoContent() {
   const qrCode = searchParams.get("code");
   const [status, setStatus] = useState("pendente");
   const [reserva, setReserva] = useState<{ created_at: string } | null>(null);
+
+  
+  useEffect(() => {
+    const initMP = () => {
+      if (typeof window !== "undefined" && (window as any).MercadoPago) {
+        try {
+          
+          new (window as any).MercadoPago(process.env.MP_PUBLIC_KEY, {
+            locale: "pt-BR",
+          });
+          console.log("Mercado Pago SDK V2 inicializado com sucesso.");
+        } catch (err) {
+          console.error("Erro ao inicializar SDK:", err);
+        }
+      }
+    };
+
+  
+    initMP();
+  }, []);
 
   useEffect(() => {
     if (!paymentId) return;
@@ -140,66 +158,83 @@ function PagamentoContent() {
   }
 
   return (
-    <main className="min-h-screen bg-[#09090A] text-white p-4 flex flex-col items-center justify-center">
-      <div className="max-w-md w-full space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-black italic uppercase tracking-tighter">
-            QUASE <span className="text-[#8257E5]">LÁ!</span>
-          </h1>
-          <p className="text-gray-400 text-sm">
-            Para garantir seus números, realize o pagamento via Pix.
-          </p>
-        </div>
+    <>
+      
 
-        <div className="bg-[#121214] border border-white/5 rounded-2xl p-6 flex flex-col items-center gap-6">
-          {reserva?.created_at && <Timer createdAt={reserva.created_at} />}
+      <Script
+        src="https://sdk.mercadopago.com/js/v2"
+        strategy="afterInteractive"
+        onLoad={() => {
+           
+           if ((window as any).MercadoPago) {
+             new (window as any).MercadoPago(process.env.MP_PUBLIC_KEY, {
+               locale: "pt-BR",
+             });
+           }
+        }}
+      />
 
-          {qrCode ? (
-            <div className="bg-white p-2 rounded-xl">
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCode)}&size=250x250`}
-                alt="QR Code Pix"
-                className="w-48 h-48"
-              />
-            </div>
-          ) : (
-            <div className="w-48 h-48 bg-white/5 animate-pulse rounded-xl flex items-center justify-center">
-              <Clock className="text-gray-600" />
-            </div>
-          )}
-
-          <div className="w-full space-y-2">
-            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-              Copia e Cola
-            </label>
-            <div className="relative">
-              <input
-                readOnly
-                value={qrCode || "Gerando código..."}
-                className="w-full bg-[#09090A] border border-white/10 rounded-lg py-3 px-4 text-xs font-mono pr-12 text-gray-300"
-              />
-              <button
-                onClick={() => {
-                  if (qrCode) navigator.clipboard.writeText(qrCode);
-                  alert("Código copiado!");
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8257E5] hover:text-white transition-colors"
-              >
-                <Copy size={20} />
-              </button>
-            </div>
-          </div>
-
-          <div className="w-full bg-[#17171B] border border-white/5 rounded-xl p-4 flex items-center gap-3">
-            <Clock size={20} className="text-[#8257E5]" />
-            <p className="text-[11px] text-gray-400 leading-relaxed">
-              Realize o pagamento rapidamente. Após 15 minutos, sua reserva será
-              cancelada e os números voltarão a ficar disponíveis.
+      <main className="min-h-screen bg-[#09090A] text-white p-4 flex flex-col items-center justify-center">
+        <div className="max-w-md w-full space-y-6">
+          <div className="text-center space-y-2">
+            <h1 className="text-3xl font-black italic uppercase tracking-tighter">
+              QUASE <span className="text-[#8257E5]">LÁ!</span>
+            </h1>
+            <p className="text-gray-400 text-sm">
+              Para garantir seus números, realize o pagamento via Pix.
             </p>
           </div>
+
+          <div className="bg-[#121214] border border-white/5 rounded-2xl p-6 flex flex-col items-center gap-6">
+            {reserva?.created_at && <Timer createdAt={reserva.created_at} />}
+
+            {qrCode ? (
+              <div className="bg-white p-2 rounded-xl">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCode)}&size=250x250`}
+                  alt="QR Code Pix"
+                  className="w-48 h-48"
+                />
+              </div>
+            ) : (
+              <div className="w-48 h-48 bg-white/5 animate-pulse rounded-xl flex items-center justify-center">
+                <Clock className="text-gray-600" />
+              </div>
+            )}
+
+            <div className="w-full space-y-2">
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                Copia e Cola
+              </label>
+              <div className="relative">
+                <input
+                  readOnly
+                  value={qrCode || "Gerando código..."}
+                  className="w-full bg-[#09090A] border border-white/10 rounded-lg py-3 px-4 text-xs font-mono pr-12 text-gray-300"
+                />
+                <button
+                  onClick={() => {
+                    if (qrCode) navigator.clipboard.writeText(qrCode);
+                    alert("Código copiado!");
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8257E5] hover:text-white transition-colors"
+                >
+                  <Copy size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="w-full bg-[#17171B] border border-white/5 rounded-xl p-4 flex items-center gap-3">
+              <Clock size={20} className="text-[#8257E5]" />
+              <p className="text-[11px] text-gray-400 leading-relaxed">
+                Realize o pagamento. Após 15 minutos, sua reserva será
+                cancelada e os números voltarão a ficar disponíveis.
+              </p>
+            </div>
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </>
   );
 }
 
