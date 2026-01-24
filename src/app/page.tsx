@@ -5,7 +5,7 @@ import Script from "next/script";
 import NumeroRifa, { StatusNumero } from "@/components/NumeroRifa";
 import { styles } from "./styles";
 import { supabase } from "@/lib/supabase";
-import {User, Smartphone, CreditCard } from "lucide-react";
+import { User, Smartphone, CreditCard } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
@@ -21,8 +21,6 @@ export default function Home() {
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [carregado, setCarregado] = useState(false);
   const [estaProcessando, setEstaProcessando] = useState(false);
-
-
 
   // ===============================
   // CONFIGURAÇÕES DA RIFA
@@ -43,7 +41,7 @@ export default function Home() {
       .in("status", ["vendido", "pago", "em_processamento", "pendente"]);
 
     if (data) {
-      setNumerosOcupados(data.map(item => item.id));
+      setNumerosOcupados(data.map((item) => item.id));
     }
   };
 
@@ -55,11 +53,15 @@ export default function Home() {
 
     const channel = supabase
       .channel("rifas-realtime")
-      .on("postgres_changes", {
-        event: "*",
-        schema: "public",
-        table: "rifas",
-      }, carregarReservas)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "rifas",
+        },
+        carregarReservas,
+      )
       .subscribe();
 
     return () => {
@@ -86,13 +88,12 @@ export default function Home() {
   // INICIALIZA MERCADO PAGO (DEVICE ID)
   // ===============================
   useEffect(() => {
-  if (typeof window !== "undefined" && window.MercadoPago) {
-    new window.MercadoPago(
-      process.env.NEXT_PUBLIC_MP_PUBLIC_KEY!,
-      { locale: "pt-BR" }
-    );
-  }
-}, []);
+    if (typeof window !== "undefined" && window.MercadoPago) {
+      new window.MercadoPago(process.env.NEXT_PUBLIC_MP_PUBLIC_KEY!, {
+        locale: "pt-BR",
+      });
+    }
+  }, []);
 
   // ===============================
   // CONTROLE DE SELEÇÃO
@@ -101,13 +102,13 @@ export default function Home() {
     if (numerosOcupados.includes(num)) return;
 
     if (selecionados.includes(num)) {
-      setSelecionados(prev => prev.filter(n => n !== num));
+      setSelecionados((prev) => prev.filter((n) => n !== num));
     } else {
       if (selecionados.length >= LIMITE_SELECAO) {
         alert(`Limite de ${LIMITE_SELECAO} números atingido.`);
         return;
       }
-      setSelecionados(prev => [...prev, num]);
+      setSelecionados((prev) => [...prev, num]);
     }
   };
 
@@ -124,14 +125,19 @@ export default function Home() {
       const res = await fetch("/api/create-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, telefone, numeros: selecionados, valorTotal }),
+        body: JSON.stringify({
+          nome,
+          telefone,
+          numeros: selecionados,
+          valorTotal,
+        }),
       });
 
       const checkout = await res.json();
       if (!checkout.id) throw new Error("Erro ao gerar pagamento.");
 
       // Salva reservas
-      const dados = selecionados.map(num => ({
+      const dados = selecionados.map((num) => ({
         id: num,
         status: "pendente",
         nome,
@@ -145,7 +151,9 @@ export default function Home() {
       localStorage.removeItem("@rifa:selecionados");
       setSelecionados([]);
 
-      router.push(`/pagamento?id=${checkout.id}&code=${encodeURIComponent(checkout.qr_code)}`);
+      router.push(
+        `/pagamento?id=${checkout.id}&code=${encodeURIComponent(checkout.qr_code)}`,
+      );
     } catch (err) {
       alert("Erro ao processar pagamento.");
     } finally {
@@ -158,7 +166,7 @@ export default function Home() {
   // ===============================
   const numerosDaPagina = Array.from(
     { length: numerosPorPagina },
-    (_, i) => (paginaAtual - 1) * numerosPorPagina + i + 1
+    (_, i) => (paginaAtual - 1) * numerosPorPagina + i + 1,
   );
 
   return (
@@ -169,9 +177,12 @@ export default function Home() {
         strategy="afterInteractive"
       />
 
-      <main className={`${styles.main} min-h-screen pb-20`}>
-        <div className={styles.container}>
+      <main className={`${styles.main} overflow-x-hidden relative min-h-screen pb-20`}>
+         {/* EFEITOS DE FUNDO */}
+      <div className="absolute top-[-10%] left-[-10%] w-125 h-125 bg-[#8257E5] opacity-[0.15] blur-[120px] rounded-full pointer-events-none"></div>
+      <div className="absolute bottom-[0%] right-[-10%] w-100 h-100 bg-[#4A90E2] opacity-[0.1] blur-[100px] rounded-full pointer-events-none"></div>
 
+      <div className={`${styles.container} relative z-0 pt-0`}>
           {/* HEADER */}
           <header className={styles.header.wrapper}>
             <h1 className={styles.header.title}>
@@ -181,17 +192,51 @@ export default function Home() {
               Escolha até {LIMITE_SELECAO} números
             </p>
           </header>
+          {/* 2. CARD DE DESTAQUE DO PRÊMIO */}
+          <section className="w-full max-w-2xl mx-auto mb-12 text-center px-4">
+            <div className="bg-[#121214] border-2 border-[#8257E5]/30 rounded-2xl p-2 relative overflow-hidden shadow-[0_0_50px_-12px_rgba(130,87,229,0.3)]">
+              <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#8257E5] blur-[100px] opacity-20"></div>
 
-          {/* PAGINAÇÃO */}
-          <nav className={styles.pagination.wrapper}>
-            <button onClick={() => setPaginaAtual(p => Math.max(p - 1, 1))}>Anterior</button>
-            <span>Página {paginaAtual} de {totalPaginas}</span>
-            <button onClick={() => setPaginaAtual(p => Math.min(p + 1, totalPaginas))}>Próxima</button>
+              <h2 className="text-2xl md:text-2xl font-black text-white italic uppercase tracking-tighter mb-2">
+                Ganhe <span className="text-[#8257E5]">R$ 1.000,00</span>
+              </h2>
+
+              <p className="text-gray-400 text-sm md:text-base max-w-md mx-auto leading-relaxed">
+                Garanta seu número por apenas{" "}
+                <span className="text-white font-bold">
+                  R$ {VALOR_UNITARIO.toFixed(2).replace(".", ",")}
+                </span>{" "}
+                e concorra ao prêmio direto no seu PIX!
+              </p>
+            </div>
+          </section>
+
+          {/* 3. NAVEGAÇÃO / PAGINAÇÃO */}
+          <nav className={`${styles.pagination.wrapper} mb-6`}>
+            <button
+              className={`${styles.pagination.btn} ${styles.pagination.btnClaro}`}
+              onClick={() => setPaginaAtual((p) => Math.max(p - 1, 1))}
+              disabled={paginaAtual === 1}
+            >
+              Anterior
+            </button>
+            <span className="text-sm font-bold text-gray-400">
+              Página {paginaAtual} de {totalPaginas}
+            </span>
+            <button
+              className={`${styles.pagination.btn} ${styles.pagination.btnAzul}`}
+              onClick={() =>
+                setPaginaAtual((p) => Math.min(p + 1, totalPaginas))
+              }
+              disabled={paginaAtual === totalPaginas}
+            >
+              Próxima
+            </button>
           </nav>
 
           {/* GRID */}
           <section className={styles.grid}>
-            {numerosDaPagina.map(n => {
+            {numerosDaPagina.map((n) => {
               let status: StatusNumero = "disponivel";
               if (numerosOcupados.includes(n)) status = "vendido";
               else if (selecionados.includes(n)) status = "selecionado";
@@ -208,67 +253,78 @@ export default function Home() {
           </section>
 
           {/* FORMULÁRIO */}
-         <footer className={styles.footer.wrapper}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div className="space-y-1">
-              <label className={styles.footer.label}>NOME</label>
-              <div className={styles.footer.inputWrapper}>
-                <User className={styles.footer.inputIcon} />
-                <input
-                  type="text"
-                  className={`${styles.footer.input} ${styles.footer.inputWithIcon}`}
-                  value={nome}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/[^a-zA-ZÀ-ÿ\s]/g, "");
-                    setNome(value);
-                  }}
-                  placeholder="Seu nome completo"
-                />
+          <footer className={styles.footer.wrapper}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="space-y-1">
+                <label className={styles.footer.label}>NOME</label>
+                <div className={styles.footer.inputWrapper}>
+                  <User className={styles.footer.inputIcon} />
+                  <input
+                    type="text"
+                    className={`${styles.footer.input} ${styles.footer.inputWithIcon}`}
+                    value={nome}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(
+                        /[^a-zA-ZÀ-ÿ\s]/g,
+                        "",
+                      );
+                      setNome(value);
+                    }}
+                    placeholder="Seu nome completo"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className={styles.footer.label}>TELEFONE</label>
+                <div className={styles.footer.inputWrapper}>
+                  <Smartphone className={styles.footer.inputIcon} />
+                  <input
+                    type="tel"
+                    className={`${styles.footer.input} ${styles.footer.inputWithIcon}`}
+                    value={telefone}
+                    onChange={(e) => {
+                      let value = e.target.value.replace(/\D/g, "");
+                      if (value.length > 11) value = value.slice(0, 11);
+                      value = value.replace(/^(\d{2})(\d)/g, "($1) $2");
+                      value = value.replace(/(\d{5})(\d)/, "$1-$2");
+                      setTelefone(value);
+                    }}
+                    placeholder="(00) 00000-0000"
+                  />
+                </div>
               </div>
             </div>
-            <div className="space-y-1">
-              <label className={styles.footer.label}>TELEFONE</label>
-              <div className={styles.footer.inputWrapper}>
-                <Smartphone className={styles.footer.inputIcon} />
-                <input
-                  type="tel"
-                  className={`${styles.footer.input} ${styles.footer.inputWithIcon}`}
-                  value={telefone}
-                  onChange={(e) => {
-                    let value = e.target.value.replace(/\D/g, "");
-                    if (value.length > 11) value = value.slice(0, 11);
-                    value = value.replace(/^(\d{2})(\d)/g, "($1) $2");
-                    value = value.replace(/(\d{5})(\d)/, "$1-$2");
-                    setTelefone(value);
-                  }}
-                  placeholder="(00) 00000-0000"
-                />
+
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-6 border-t border-white/5">
+              <div>
+                <p className="text-[12px] font-black text-[#8257E5] uppercase tracking-widest">
+                  Total da Reserva
+                </p>
+                <p className="text-3xl font-black text-white font-mono">
+                  R${" "}
+                  {(selecionados.length * VALOR_UNITARIO)
+                    .toFixed(2)
+                    .replace(".", ",")}
+                </p>
               </div>
-            </div>
-          </div>
 
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-6 border-t border-white/5">
-            <div>
-              <p className="text-[12px] font-black text-[#8257E5] uppercase tracking-widest">
-                Total da Reserva
-              </p>
-              <p className="text-3xl font-black text-white font-mono">
-                R$ {(selecionados.length * VALOR_UNITARIO).toFixed(2).replace(".", ",")}
-              </p>
+              <button
+                className={styles.footer.btnFinalizar}
+                disabled={
+                  !nome ||
+                  !telefone ||
+                  selecionados.length === 0 ||
+                  estaProcessando
+                }
+                onClick={handleFinalizar}
+              >
+                <CreditCard size={22} className="text-white" />
+                {estaProcessando ? "PROCESSANDO..." : "PAGAR COM PIX"}
+              </button>
             </div>
-
-            <button
-              className={styles.footer.btnFinalizar}
-              disabled={!nome || !telefone || selecionados.length === 0 || estaProcessando}
-              onClick={handleFinalizar}
-            >
-              <CreditCard size={22} className="text-white" />
-              {estaProcessando ? "PROCESSANDO..." : "PAGAR COM PIX"}
-            </button>
-          </div>
-        </footer>
-      </div>
-    </main>
+          </footer>
+        </div>
+      </main>
     </>
   );
 }
