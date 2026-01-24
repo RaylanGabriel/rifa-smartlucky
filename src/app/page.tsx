@@ -1,45 +1,65 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Script from "next/script";
 import NumeroRifa, { StatusNumero } from "@/components/NumeroRifa";
 import { styles } from "./styles";
 import { supabase } from "@/lib/supabase";
-import { User, Smartphone, CreditCard, } from "lucide-react";
+import {User, Smartphone, CreditCard } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
   const router = useRouter();
+
+  // ===============================
+  // ESTADOS PRINCIPAIS
+  // ===============================
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [selecionados, setSelecionados] = useState<number[]>([]);
-  const [carregado, setCarregado] = useState(false);
-  const [paginaAtual, setPaginaAtual] = useState(1);
   const [numerosOcupados, setNumerosOcupados] = useState<number[]>([]);
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const [carregado, setCarregado] = useState(false);
   const [estaProcessando, setEstaProcessando] = useState(false);
 
+
+
+  // ===============================
+  // CONFIGURAÇÕES DA RIFA
+  // ===============================
   const totalNumeros = 500;
   const numerosPorPagina = 100;
   const totalPaginas = Math.ceil(totalNumeros / numerosPorPagina);
   const LIMITE_SELECAO = 10;
   const VALOR_UNITARIO = 3.5;
 
+  // ===============================
+  // CARREGA RESERVAS ATIVAS
+  // ===============================
   const carregarReservas = async () => {
     const { data } = await supabase
       .from("rifas")
       .select("id")
       .in("status", ["vendido", "pago", "em_processamento", "pendente"]);
+
     if (data) {
       setNumerosOcupados(data.map(item => item.id));
     }
   };
 
+  // ===============================
+  // REALTIME SUPABASE
+  // ===============================
   useEffect(() => {
     carregarReservas();
+
     const channel = supabase
-      .channel("schema-db-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "rifas" }, () => {
-        carregarReservas();
-      })
+      .channel("rifas-realtime")
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "rifas",
+      }, carregarReservas)
       .subscribe();
 
     return () => {
@@ -47,6 +67,9 @@ export default function Home() {
     };
   }, []);
 
+  // ===============================
+  // LOCAL STORAGE
+  // ===============================
   useEffect(() => {
     const salvo = localStorage.getItem("@rifa:selecionados");
     if (salvo) setSelecionados(JSON.parse(salvo));
@@ -59,133 +82,133 @@ export default function Home() {
     }
   }, [selecionados, carregado]);
 
+  // ===============================
+  // INICIALIZA MERCADO PAGO (DEVICE ID)
+  // ===============================
+  useEffect(() => {
+  if (typeof window !== "undefined" && window.MercadoPago) {
+    new window.MercadoPago(
+      process.env.NEXT_PUBLIC_MP_PUBLIC_KEY!,
+      { locale: "pt-BR" }
+    );
+  }
+}, []);
+
+  // ===============================
+  // CONTROLE DE SELEÇÃO
+  // ===============================
   const gerenciarSelecao = (num: number) => {
     if (numerosOcupados.includes(num)) return;
+
     if (selecionados.includes(num)) {
-      setSelecionados((prev) => prev.filter((item) => item !== num));
+      setSelecionados(prev => prev.filter(n => n !== num));
     } else {
       if (selecionados.length >= LIMITE_SELECAO) {
-        alert(`Limite de ${LIMITE_SELECAO} números atingido!`);
+        alert(`Limite de ${LIMITE_SELECAO} números atingido.`);
         return;
       }
-      setSelecionados((prev) => [...prev, num]);
+      setSelecionados(prev => [...prev, num]);
     }
   };
 
+  // ===============================
+  // FINALIZA PAGAMENTO (PIX)
+  // ===============================
   const handleFinalizar = async () => {
     setEstaProcessando(true);
+
     try {
       const valorTotal = selecionados.length * VALOR_UNITARIO;
+
+      // Cria pagamento no backend
       const res = await fetch("/api/create-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, numeros: selecionados, valorTotal: valorTotal }),
+        body: JSON.stringify({ nome, telefone, numeros: selecionados, valorTotal }),
       });
-      const checkout = await res.json();
-      if (!checkout.id) throw new Error("Erro ao gerar o PIX. Tente novamente.");
 
-      const dadosParaSalvar = selecionados.map((num) => ({
+      const checkout = await res.json();
+      if (!checkout.id) throw new Error("Erro ao gerar pagamento.");
+
+      // Salva reservas
+      const dados = selecionados.map(num => ({
         id: num,
         status: "pendente",
-        nome: nome,
-        telefone: telefone,
+        nome,
+        telefone,
         payment_id: String(checkout.id),
       }));
 
-      const { error } = await supabase.from("rifas").upsert(dadosParaSalvar);
+      const { error } = await supabase.from("rifas").upsert(dados);
       if (error) throw error;
 
-      setSelecionados([]);
       localStorage.removeItem("@rifa:selecionados");
+      setSelecionados([]);
+
       router.push(`/pagamento?id=${checkout.id}&code=${encodeURIComponent(checkout.qr_code)}`);
-    } catch (error: unknown) {
-      alert(error instanceof Error ? error.message : "Erro ao processar o pagamento.");
+    } catch (err) {
+      alert("Erro ao processar pagamento.");
     } finally {
       setEstaProcessando(false);
     }
   };
 
+  // ===============================
+  // NUMEROS DA PÁGINA
+  // ===============================
   const numerosDaPagina = Array.from(
     { length: numerosPorPagina },
     (_, i) => (paginaAtual - 1) * numerosPorPagina + i + 1
   );
 
   return (
-    <main className={`${styles.main} overflow-x-hidden relative min-h-screen pb-20`}>
-      {/* EFEITOS DE FUNDO */}
-      <div className="absolute top-[-10%] left-[-10%] w-125 h-125 bg-[#8257E5] opacity-[0.15] blur-[120px] rounded-full pointer-events-none"></div>
-      <div className="absolute bottom-[0%] right-[-10%] w-100 h-100 bg-[#4A90E2] opacity-[0.1] blur-[100px] rounded-full pointer-events-none"></div>
+    <>
+      {/* SDK MERCADO PAGO (OBRIGATÓRIO) */}
+      <Script
+        src="https://sdk.mercadopago.com/js/v2"
+        strategy="afterInteractive"
+      />
 
-      <div className={`${styles.container} relative z-0 pt-0`}>
-        
-        {/* 1. HEADER */}
-        <header className={`${styles.header.wrapper} mb-8`}>
-          <h1 className={styles.header.title}>
-            <span className="text-[#8257E5] font-mono">Smart</span>
-            <span className="text-white font-mono">Lucky</span>
-          </h1>
-          <p className={styles.header.subtitle}>
-            Sua sorte começa aqui! Escolha até {LIMITE_SELECAO} números.
-          </p>
-        </header>
+      <main className={`${styles.main} min-h-screen pb-20`}>
+        <div className={styles.container}>
 
-        {/* 2. CARD DE DESTAQUE DO PRÊMIO */}
-        <section className="w-full max-w-2xl mx-auto mb-12 text-center px-4">
-          <div className="bg-[#121214] border-2 border-[#8257E5]/30 rounded-2xl p-2 relative overflow-hidden shadow-[0_0_50px_-12px_rgba(130,87,229,0.3)]">
-            <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#8257E5] blur-[100px] opacity-20"></div>
-            
-            
-            <h2 className="text-2xl md:text-2xl font-black text-white italic uppercase tracking-tighter mb-2">
-              Ganhe <span className="text-[#8257E5]">R$ 1.000,00</span>
-            </h2>
-            
-            <p className="text-gray-400 text-sm md:text-base max-w-md mx-auto leading-relaxed">
-              Garanta seu número por apenas <span className="text-white font-bold">R$ {VALOR_UNITARIO.toFixed(2).replace(".", ",")}</span> e concorra ao prêmio direto no seu PIX!
+          {/* HEADER */}
+          <header className={styles.header.wrapper}>
+            <h1 className={styles.header.title}>
+              <span className="text-[#8257E5]">Smart</span>Lucky
+            </h1>
+            <p className={styles.header.subtitle}>
+              Escolha até {LIMITE_SELECAO} números
             </p>
-          </div>
-        </section>
+          </header>
 
-        {/* 3. NAVEGAÇÃO / PAGINAÇÃO */}
-        <nav className={`${styles.pagination.wrapper} mb-6`}>
-          <button
-            className={`${styles.pagination.btn} ${styles.pagination.btnClaro}`}
-            onClick={() => setPaginaAtual((p) => Math.max(p - 1, 1))}
-            disabled={paginaAtual === 1}
-          >
-            Anterior
-          </button>
-          <span className="text-sm font-bold text-gray-400">
-            Página {paginaAtual} de {totalPaginas}
-          </span>
-          <button
-            className={`${styles.pagination.btn} ${styles.pagination.btnAzul}`}
-            onClick={() => setPaginaAtual((p) => Math.min(p + 1, totalPaginas))}
-            disabled={paginaAtual === totalPaginas}
-          >
-            Próxima
-          </button>
-        </nav>
+          {/* PAGINAÇÃO */}
+          <nav className={styles.pagination.wrapper}>
+            <button onClick={() => setPaginaAtual(p => Math.max(p - 1, 1))}>Anterior</button>
+            <span>Página {paginaAtual} de {totalPaginas}</span>
+            <button onClick={() => setPaginaAtual(p => Math.min(p + 1, totalPaginas))}>Próxima</button>
+          </nav>
 
-        {/* 4. GRADE DE NÚMEROS */}
-        <section className={`${styles.grid} ${carregado ? "opacity-100" : "opacity-0"} mb-12 transition-opacity duration-500`}>
-          {numerosDaPagina.map((n) => {
-            let status: StatusNumero = "disponivel";
-            if (numerosOcupados.includes(n)) status = "vendido";
-            else if (selecionados.includes(n)) status = "selecionado";
+          {/* GRID */}
+          <section className={styles.grid}>
+            {numerosDaPagina.map(n => {
+              let status: StatusNumero = "disponivel";
+              if (numerosOcupados.includes(n)) status = "vendido";
+              else if (selecionados.includes(n)) status = "selecionado";
 
-            return (
-              <NumeroRifa
-                key={n}
-                numero={n}
-                status={status}
-                onClick={() => gerenciarSelecao(n)}
-              />
-            );
-          })}
-        </section>
+              return (
+                <NumeroRifa
+                  key={n}
+                  numero={n}
+                  status={status}
+                  onClick={() => gerenciarSelecao(n)}
+                />
+              );
+            })}
+          </section>
 
-        {/* 5. RODAPÉ / FORMULÁRIO */}
-        <footer className={styles.footer.wrapper}>
+          {/* FORMULÁRIO */}
+         <footer className={styles.footer.wrapper}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div className="space-y-1">
               <label className={styles.footer.label}>NOME</label>
@@ -246,5 +269,6 @@ export default function Home() {
         </footer>
       </div>
     </main>
+    </>
   );
 }

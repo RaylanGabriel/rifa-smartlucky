@@ -7,20 +7,6 @@ import { CheckCircle2, Clock, Copy } from "lucide-react";
 import Script from "next/script";
 
 /* ===========================
-   Tipagem global MercadoPago
-=========================== */
-declare global {
-  interface Window {
-    MercadoPago?: new (
-      key: string,
-      options?: {
-        locale?: string;
-      }
-    ) => unknown;
-  }
-}
-
-/* ===========================
    Timer
 =========================== */
 export function Timer({ createdAt }: { createdAt: string }) {
@@ -256,9 +242,7 @@ function PagamentoContent() {
   );
 }
 
-/* ===========================
-   Suspense wrapper
-=========================== */
+
 export default function PagamentoPage() {
   return (
     <Suspense
