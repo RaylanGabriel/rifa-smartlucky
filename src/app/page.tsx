@@ -308,19 +308,14 @@ export default function Home() {
                 </p>
               </div>
 
-              <button
-                className={styles.footer.btnFinalizar}
-                disabled={
-                  !nome ||
-                  !telefone ||
-                  selecionados.length === 0 ||
-                  estaProcessando
-                }
-                onClick={handleFinalizar}
-              >
-                <CreditCard size={22} className="text-white" />
-                {estaProcessando ? "PROCESSANDO..." : "PAGAR COM PIX"}
-              </button>
+             <button
+              className={styles.footer.btnFinalizar}
+              disabled={!nome || !telefone || selecionados.length === 0 || estaProcessando}
+              onClick={handleFinalizar}
+            >
+              <CreditCard size={22} className="text-white" />
+              {estaProcessando ? "PROCESSANDO..." : "PAGAR COM PIX"}
+            </button>
             </div>
           </footer>
         </div>
