@@ -1,21 +1,37 @@
 "use client";
 
 import { Suspense, useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { CheckCircle2, Clock, Copy } from "lucide-react";
-import { useRouter } from "next/navigation";
-import Script from "next/script"; 
+import Script from "next/script";
 
+/* ===========================
+   Tipagem global MercadoPago
+=========================== */
+declare global {
+  interface Window {
+    MercadoPago?: new (
+      key: string,
+      options?: {
+        locale?: string;
+      }
+    ) => unknown;
+  }
+}
+
+/* ===========================
+   Timer
+=========================== */
 export function Timer({ createdAt }: { createdAt: string }) {
   const [timeLeft, setTimeLeft] = useState("");
   const router = useRouter();
 
   useEffect(() => {
-    const calculateTime = () => {
+    const calculateTime = (): boolean => {
       const createdTime = new Date(createdAt.replace(" ", "T")).getTime();
       const expirationTime = createdTime + 15 * 60 * 1000;
-      const now = new Date().getTime();
+      const now = Date.now();
       const difference = expirationTime - now;
 
       if (difference <= 0) {
@@ -24,22 +40,24 @@ export function Timer({ createdAt }: { createdAt: string }) {
         return false;
       }
 
-      const minutes = Math.floor((difference / (1000 * 60)) % 60);
+      const minutes = Math.floor((difference / 60000) % 60);
       const seconds = Math.floor((difference / 1000) % 60);
 
       setTimeLeft(
-        `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`,
+        `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
       );
       return true;
     };
-    const shouldcontinue = calculateTime();
-    if (shouldcontinue) {
-      const interval = setInterval(() => {
-        const active = calculateTime();
-        if (!active) clearInterval(interval);
-      }, 1000);
-      return () => clearInterval(interval);
-    }
+
+    const active = calculateTime();
+    if (!active) return;
+
+    const interval = setInterval(() => {
+      const stillActive = calculateTime();
+      if (!stillActive) clearInterval(interval);
+    }, 1000);
+
+    return () => clearInterval(interval);
   }, [createdAt, router]);
 
   return (
@@ -54,45 +72,33 @@ export function Timer({ createdAt }: { createdAt: string }) {
   );
 }
 
+/* ===========================
+   Conteúdo principal
+=========================== */
 function PagamentoContent() {
   const searchParams = useSearchParams();
   const paymentId = searchParams.get("id");
   const qrCode = searchParams.get("code");
-  const [status, setStatus] = useState("pendente");
+
+  const [status, setStatus] = useState<"pendente" | "approved">("pendente");
   const [reserva, setReserva] = useState<{ created_at: string } | null>(null);
 
-  
-  useEffect(() => {
-    const initMP = () => {
-      if (typeof window !== "undefined" && (window as any).MercadoPago) {
-        try {
-          
-          new (window as any).MercadoPago(process.env.MP_PUBLIC_KEY, {
-            locale: "pt-BR",
-          });
-          console.log("Mercado Pago SDK V2 inicializado com sucesso.");
-        } catch (err) {
-          console.error("Erro ao inicializar SDK:", err);
-        }
-      }
-    };
-
-  
-    initMP();
-  }, []);
-
+  /* ===========================
+     Checa status no Supabase
+  =========================== */
   useEffect(() => {
     if (!paymentId) return;
+
     const checkStatus = async () => {
       try {
         const { data, error } = await supabase
           .from("rifas")
           .select("status, created_at")
-          .eq("payment_id", String(paymentId))
+          .eq("payment_id", paymentId)
           .single();
 
         if (error) {
-          console.error("Erro na busca do Supabase:", error.message);
+          console.error("Erro Supabase:", error.message);
           return;
         }
 
@@ -102,8 +108,12 @@ function PagamentoContent() {
             setStatus("approved");
           }
         }
-      } catch (err) {
-        console.error("Erro crítico:", err);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          console.error("Erro crítico:", err.message);
+        } else {
+          console.error("Erro crítico desconhecido");
+        }
       }
     };
 
@@ -120,13 +130,11 @@ function PagamentoContent() {
           filter: `payment_id=eq.${paymentId}`,
         },
         (payload) => {
-          if (
-            payload.new.status === "approved" ||
-            payload.new.status === "pago"
-          ) {
+          const newStatus = payload.new.status as string;
+          if (newStatus === "approved" || newStatus === "pago") {
             setStatus("approved");
           }
-        },
+        }
       )
       .subscribe();
 
@@ -135,6 +143,9 @@ function PagamentoContent() {
     };
   }, [paymentId]);
 
+  /* ===========================
+     Pagamento aprovado
+  =========================== */
   if (status === "approved") {
     return (
       <main className="min-h-screen bg-[#09090A] flex items-center justify-center p-4">
@@ -157,20 +168,21 @@ function PagamentoContent() {
     );
   }
 
+  /* ===========================
+     Tela de pagamento
+  =========================== */
   return (
     <>
-      
-
       <Script
         src="https://sdk.mercadopago.com/js/v2"
         strategy="afterInteractive"
         onLoad={() => {
-           
-           if ((window as any).MercadoPago) {
-             new (window as any).MercadoPago(process.env.MP_PUBLIC_KEY, {
-               locale: "pt-BR",
-             });
-           }
+          if (window.MercadoPago) {
+            new window.MercadoPago(
+              process.env.NEXT_PUBLIC_MP_PUBLIC_KEY!,
+              { locale: "pt-BR" }
+            );
+          }
         }}
       />
 
@@ -186,12 +198,16 @@ function PagamentoContent() {
           </div>
 
           <div className="bg-[#121214] border border-white/5 rounded-2xl p-6 flex flex-col items-center gap-6">
-            {reserva?.created_at && <Timer createdAt={reserva.created_at} />}
+            {reserva?.created_at && (
+              <Timer createdAt={reserva.created_at} />
+            )}
 
             {qrCode ? (
               <div className="bg-white p-2 rounded-xl">
                 <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCode)}&size=250x250`}
+                  src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(
+                    qrCode
+                  )}&size=250x250`}
                   alt="QR Code Pix"
                   className="w-48 h-48"
                 />
@@ -214,8 +230,10 @@ function PagamentoContent() {
                 />
                 <button
                   onClick={() => {
-                    if (qrCode) navigator.clipboard.writeText(qrCode);
-                    alert("Código copiado!");
+                    if (qrCode) {
+                      navigator.clipboard.writeText(qrCode);
+                      alert("Código copiado!");
+                    }
                   }}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8257E5] hover:text-white transition-colors"
                 >
@@ -227,8 +245,8 @@ function PagamentoContent() {
             <div className="w-full bg-[#17171B] border border-white/5 rounded-xl p-4 flex items-center gap-3">
               <Clock size={20} className="text-[#8257E5]" />
               <p className="text-[11px] text-gray-400 leading-relaxed">
-                Realize o pagamento. Após 15 minutos, sua reserva será
-                cancelada e os números voltarão a ficar disponíveis.
+                Realize o pagamento. Após 15 minutos, sua reserva será cancelada
+                e os números voltarão a ficar disponíveis.
               </p>
             </div>
           </div>
@@ -238,6 +256,9 @@ function PagamentoContent() {
   );
 }
 
+/* ===========================
+   Suspense wrapper
+=========================== */
 export default function PagamentoPage() {
   return (
     <Suspense
