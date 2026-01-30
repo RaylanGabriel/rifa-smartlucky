@@ -5,7 +5,7 @@ import Script from "next/script";
 import NumeroRifa, { StatusNumero } from "@/components/NumeroRifa";
 import { styles } from "./styles";
 import { supabase } from "@/lib/supabase";
-import { User, Smartphone, CreditCard } from "lucide-react";
+import { User, Smartphone, CreditCard, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
@@ -15,6 +15,7 @@ export default function Home() {
   // ESTADOS PRINCIPAIS
   // ===============================
   const [nome, setNome] = useState("");
+  const [mail, setMail] = useState("");
   const [telefone, setTelefone] = useState("");
   const [selecionados, setSelecionados] = useState<number[]>([]);
   const [numerosOcupados, setNumerosOcupados] = useState<number[]>([]);
@@ -297,14 +298,14 @@ export default function Home() {
             <div className="space-y-1">
               <label className={styles.footer.label}>EMAIL</label>
               <div className={styles.footer.inputWrapper}>
-                <Smartphone className={styles.footer.inputIcon} />
+                <Mail className={styles.footer.inputIcon} />
                 <input
                   type="email"
                   className={`${styles.footer.input} ${styles.footer.inputWithIcon}`}
-                  value={telefone}
+                  value={mail}
                   onChange={(e) => {
                     const value = e.target.value;
-                    setTelefone(value);
+                    setMail(value);
                   }}
                   placeholder="
             Digite seu email"
