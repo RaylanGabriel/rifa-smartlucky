@@ -294,6 +294,23 @@ export default function Home() {
                 </div>
               </div>
             </div>
+            <div className="space-y-1">
+              <label className={styles.footer.label}>EMAIL</label>
+              <div className={styles.footer.inputWrapper}>
+                <Smartphone className={styles.footer.inputIcon} />
+                <input
+                  type="email"
+                  className={`${styles.footer.input} ${styles.footer.inputWithIcon}`}
+                  value={telefone}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setTelefone(value);
+                  }}
+                  placeholder="
+            Digite seu email"
+                />
+              </div>
+            </div>
 
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-6 border-t border-white/5">
               <div>

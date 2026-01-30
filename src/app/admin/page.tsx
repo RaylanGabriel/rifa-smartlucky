@@ -9,7 +9,7 @@ import { Trash2, ExternalLink, LogOut, CheckCircle } from "lucide-react";
 interface Venda {
   id: string;
   nome: string;
-  whatsapp: string;
+  telefone: string;
   status: string;
 }
 
@@ -52,7 +52,7 @@ export default function AdminPage() {
       .on(
         "postgres_changes",
         {
-          event: "UPDATE", // evita disparos excessivos
+          event: "UPDATE", 
           schema: "public",
           table: "rifas",
         },
@@ -161,7 +161,7 @@ export default function AdminPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-gray-500 text-xs">
-                          {venda.whatsapp}
+                          {venda.telefone}
                         </span>
                         <span
                           className={`text-[9px] px-1.5 rounded border ${
@@ -177,7 +177,7 @@ export default function AdminPage() {
 
                     <td className="p-4 text-right space-x-2">
                       <a
-                        href={`https://wa.me/55${venda.whatsapp.replace(/\D/g, "")}`}
+                        href={`https://wa.me/55${venda.telefone.replace(/\D/g, "")}`}
                         target="_blank"
                         className="inline-block p-2 text-green-500 hover:bg-green-500/10 rounded-lg"
                         title="WhatsApp"
