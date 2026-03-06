@@ -11,9 +11,9 @@ import { useRouter } from "next/navigation";
 export default function Home() {
   const router = useRouter();
 
-  // ===============================
+  
   // ESTADOS PRINCIPAIS
-  // ===============================
+  
   const [nome, setNome] = useState("");
   const [mail, setMail] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -23,33 +23,32 @@ export default function Home() {
   const [carregado, setCarregado] = useState(false);
   const [estaProcessando, setEstaProcessando] = useState(false);
 
-  // ===============================
+ 
   // CONFIGURAÇÕES DA RIFA
-  // ===============================
+  
   const totalNumeros = 500;
   const numerosPorPagina = 100;
   const totalPaginas = Math.ceil(totalNumeros / numerosPorPagina);
   const LIMITE_SELECAO = 10;
-  const VALOR_UNITARIO = 3.5;
+  const VALOR_UNITARIO = 1;
 
-  // ===============================
+  
   // CARREGA RESERVAS ATIVAS
-  // ===============================
+   
   const carregarReservas = async () => {
     const { data } = await supabase
       .from("rifas")
-      .select("id")
+      .select("numero_escolhido")
       .in("status", ["vendido", "pago", "em_processamento", "pendente"]);
 
     if (data) {
-      setNumerosOcupados(data.map((item) => item.id));
+      setNumerosOcupados(data.map((item) => item.numero_escolhido));
     }
   };
 
-  // ===============================
+  
   // REALTIME SUPABASE
-  // ===============================
-  useEffect(() => {
+    useEffect(() => {
     carregarReservas();
 
     const channel = supabase
@@ -70,9 +69,9 @@ export default function Home() {
     };
   }, []);
 
-  // ===============================
+  
   // LOCAL STORAGE
-  // ===============================
+  
   useEffect(() => {
     const salvo = localStorage.getItem("@rifa:selecionados");
     if (salvo) setSelecionados(JSON.parse(salvo));
@@ -85,9 +84,8 @@ export default function Home() {
     }
   }, [selecionados, carregado]);
 
-  // ===============================
   // INICIALIZA MERCADO PAGO (DEVICE ID)
-  // ===============================
+  
   useEffect(() => {
     if (typeof window !== "undefined" && window.MercadoPago) {
       new window.MercadoPago(process.env.NEXT_PUBLIC_MP_PUBLIC_KEY!, {
@@ -96,9 +94,9 @@ export default function Home() {
     }
   }, []);
 
-  // ===============================
-  // CONTROLE DE SELEÇÃO
-  // ===============================
+ 
+  
+  
   const gerenciarSelecao = (num: number) => {
     if (numerosOcupados.includes(num)) return;
 
@@ -113,9 +111,9 @@ export default function Home() {
     }
   };
 
-  // ===============================
+  
   // FINALIZA PAGAMENTO (PIX)
-  // ===============================
+  
   const handleFinalizar = async () => {
     setEstaProcessando(true);
 
@@ -129,6 +127,7 @@ export default function Home() {
         body: JSON.stringify({
           nome,
           telefone,
+          mail,
           numeros: selecionados,
           valorTotal,
         }),
@@ -139,9 +138,10 @@ export default function Home() {
 
       // Salva reservas
       const dados = selecionados.map((num) => ({
-        id: num,
+        numero_escolhido: num,
         status: "pendente",
         nome,
+        email: mail,
         telefone,
         payment_id: String(checkout.id),
       }));
@@ -162,9 +162,9 @@ export default function Home() {
     }
   };
 
-  // ===============================
-  // NUMEROS DA PÁGINA
-  // ===============================
+  
+ // NUMEROS DA PÁGINA
+  
   const numerosDaPagina = Array.from(
     { length: numerosPorPagina },
     (_, i) => (paginaAtual - 1) * numerosPorPagina + i + 1,
@@ -328,7 +328,7 @@ export default function Home() {
 
              <button
               className={styles.footer.btnFinalizar}
-              disabled={!nome || !telefone || selecionados.length === 0 || estaProcessando}
+              disabled={!nome || !telefone || !mail || selecionados.length === 0 || estaProcessando}
               onClick={handleFinalizar}
             >
               <CreditCard size={22} className="text-white" />

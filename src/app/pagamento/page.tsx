@@ -80,8 +80,7 @@ function PagamentoContent() {
         const { data, error } = await supabase
           .from("rifas")
           .select("status, created_at")
-          .eq("payment_id", paymentId)
-          .single();
+          .eq("payment_id", paymentId);
 
         if (error) {
           console.error("Erro Supabase:", error.message);
@@ -89,8 +88,10 @@ function PagamentoContent() {
         }
 
         if (data) {
-          setReserva(data);
-          if (data.status === "approved" || data.status === "pago") {
+          // Pode retornar um array de linhas (uma por número) ou um único objeto
+          const first = Array.isArray(data) ? data[0] : data;
+          setReserva(first as { created_at: string });
+          if (first?.status === "approved" || first?.status === "pago") {
             setStatus("approved");
           }
         }

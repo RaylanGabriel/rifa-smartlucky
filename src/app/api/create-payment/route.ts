@@ -8,12 +8,12 @@ type CreatePaymentBody = {
 
 export async function POST(req: Request) {
   try {
-    // 1️⃣ Lê o body da requisição
+    //  Lê o body da requisição
     const body = (await req.json()) as CreatePaymentBody;
 
     const { nome, numeros, valorTotal } = body;
 
-    // 2️⃣ Validação correta (SEM any)
+    
     if (
       typeof nome !== "string" ||
       !Array.isArray(numeros) ||
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 3️⃣ Chamada ao Mercado Pago (PIX)
+    // Chamada ao Mercado Pago (PIX)
     const response = await fetch(
       "https://api.mercadopago.com/v1/payments",
       {
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
           notification_url:
             "https://rifa-smartlucky.vercel.app/api/webhooks/mercadopago",
 
-          // ⚠️ Email NÃO precisa vir do front
+          
           payer: {
             email: "raylankuenca1@gmail.com",
             first_name: nome,
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
 
     const data = await response.json();
 
-    // 4️⃣ Erro vindo do Mercado Pago
+    // Erro vindo do Mercado Pago
     if (!response.ok) {
       console.error("Erro Mercado Pago:", data);
       return NextResponse.json(
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 5️⃣ Retorno esperado pelo frontend
+    // Retorno esperado pelo frontend
     return NextResponse.json({
       id: data.id,
       qr_code: data.point_of_interaction.transaction_data.qr_code,
